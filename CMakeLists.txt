@@ -91,6 +91,7 @@ set(SRCS
 	src/user_interface/player_profile.c
 	src/user_interface/starting_state.c
 	src/user_interface/snippet_editor.c
+	src/user_interface/shot_finder.c
 	src/user_interface/timeline_events.c
 	src/user_interface/undo_redo.c
 	src/user_interface/user_interface.c

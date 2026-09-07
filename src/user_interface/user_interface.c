@@ -4,6 +4,7 @@
 #include "input_effects_editor.h"
 #include "player_profile.h"
 #include "snippet_editor.h"
+#include "shot_finder.h"
 #include "starting_state.h"
 #include "timeline/timeline_commands.h"
 #include "timeline/timeline_interaction.h"
@@ -278,6 +279,8 @@ void render_menu_bar(ui_handler_t *ui) {
       igMenuItem_BoolPtr("Timeline Events", NULL, &ui->show_timeline_events_window, true);
       igMenuItem_BoolPtr("Snippet Editor", NULL, &ui->show_snippet_editor_window, true);
       igMenuItem_BoolPtr("Effects", NULL, &ui->show_effects_window, true);
+      bool *shot_finder_visible = shot_finder_window_visibility(ui);
+      if (shot_finder_visible) igMenuItem_BoolPtr("ShotFinder", NULL, shot_finder_visible, true);
       igMenuItem_BoolPtr("Undo History", NULL, &ui->undo_manager.show_history_window, true);
       if (!panels_visible) igEndDisabled();
       igSeparator();
@@ -478,6 +481,7 @@ void setup_docking(ui_handler_t *ui) {
     igDockBuilderDockWindow("Players", dock_id_left);
     igDockBuilderDockWindow("Snippet Editor", dock_id_right);
     igDockBuilderDockWindow("Effects", dock_id_right);
+    igDockBuilderDockWindow("ShotFinder", dock_id_right);
 
     for (int i = 0; i < ui->plugin_manager.count; ++i) {
       loaded_plugin_t *p = &ui->plugin_manager.plugins[i];
@@ -1299,6 +1303,7 @@ void ui_init(ui_handler_t *ui, gfx_handler_t *gfx_handler) {
   ui->pending_confirmed = false;
   ui->show_unsaved_prompt = false;
   timeline_init(ui);
+  shot_finder_init(ui);
   camera_init(&gfx_handler->renderer.camera);
   config_apply_game_editor_state(ui);
   undo_manager_init(&ui->undo_manager);
@@ -1365,6 +1370,10 @@ void ui_run_pending_project_switch(ui_handler_t *ui) {
   ui->pending_action = UI_PENDING_NONE;
   ui->pending_path[0] = '\0';
   ui->pending_confirmed = false;
+
+  // Search worlds belong to the currently active game module. Release them
+  // before a project switch can replace that module or its level.
+  shot_finder_reset(ui, "Ready. Select a DDNet player and TAS frame.");
 
   switch (action) {
   case UI_PENDING_NEW_PROJECT:
@@ -1826,6 +1835,7 @@ void ui_render(ui_handler_t *ui) {
   // tas_context_t::ui_visible. Set before the update that reads it.
   ui->plugin_context.ui_visible = ui->show_ui;
   plugin_manager_update_all(&ui->plugin_manager);
+  shot_finder_update(ui);
 
   // Pinned to the right edge, so it runs after everything that appends to the
   // menu bar: the editor's menus, the game's, and every plugin's. Anything
@@ -1853,6 +1863,7 @@ void ui_render(ui_handler_t *ui) {
     render_player_manager(ui);
     render_snippet_editor_panel(ui);
     input_effects_editor_render(ui);
+    shot_finder_render_window(ui);
 
     undo_manager_render_history_window(&ui->undo_manager);
     render_timeline_events_window(ui);
@@ -2017,7 +2028,9 @@ bool ui_render_late(ui_handler_t *ui) {
   start.y += 10.0f;
 
   // handle raycast/click interaction
-  if (hovered && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
+  const bool shot_finder_click = shot_finder_viewport_overlay(ui, viewport_content_pos, img_size, hovered);
+
+  if (hovered && !shot_finder_click && igIsMouseClicked_Bool(ImGuiMouseButton_Left, false)) {
     ImGuiIO *io = igGetIO_Nil();
     float mx = io->MousePos.x - viewport_content_pos.x;
     float my = io->MousePos.y - viewport_content_pos.y;
@@ -2090,10 +2103,12 @@ void ui_post_level_load(ui_handler_t *ui) {
   // editor only resets what it owns.
   ui->timeline.current_tick = 0;
   ui->timeline.event_count = 0;
+  shot_finder_reset(ui, "Ready. Select a DDNet player and TAS frame.");
 }
 
 void ui_cleanup(ui_handler_t *ui) {
   config_save(ui);
+  shot_finder_cleanup(ui);
   plugin_manager_shutdown(&ui->plugin_manager);
   snippet_editor_cleanup();
   undo_manager_cleanup(&ui->undo_manager);

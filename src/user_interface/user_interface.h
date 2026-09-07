@@ -31,6 +31,7 @@ struct ui_handler_t {
   plugin_manager_t plugin_manager;
   tas_context_t plugin_context;
   tas_api_t plugin_api;
+  struct shot_finder_t *shot_finder;
 
   ImVec2 viewport_window_pos;
   vec2 last_render_pos;

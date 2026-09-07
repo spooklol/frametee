@@ -247,6 +247,10 @@ enum ddnet_player_prop {
   PROP_POSITION = 0,
   PROP_VELOCITY,
   PROP_ACTIVE_WEAPON,
+  // Read-only timing used by simulation-driven tools such as ShotFinder. The
+  // physics remains the authority for whether a requested shot really fires.
+  PROP_RELOAD_TIMER,
+  PROP_ATTACK_TICK,
   PROP_HAS_SHOTGUN,
   PROP_HAS_GRENADE,
   PROP_HAS_LASER,
@@ -303,6 +307,18 @@ static const ft_prop_desc player_props[PROP_COUNT] = {
                             .flags = FT_PROP_WRITABLE | FT_PROP_STARTING | FT_PROP_SUMMARY,
                             .min_value = 0,
                             .max_value = NUM_WEAPONS - 1},
+    [PROP_RELOAD_TIMER] = {.id = "reload_timer",
+                           .display_name = "Reload timer",
+                           .group = "Weapons",
+                           .unit = "ticks",
+                           .kind = FT_VALUE_INT,
+                           .flags = FT_PROP_READ_ONLY_UI},
+    [PROP_ATTACK_TICK] = {.id = "attack_tick",
+                          .display_name = "Last attack tick",
+                          .group = "Weapons",
+                          .unit = "ticks",
+                          .kind = FT_VALUE_INT,
+                          .flags = FT_PROP_READ_ONLY_UI},
     [PROP_HAS_SHOTGUN] = {.id = "has_shotgun", .display_name = "Shotgun", .group = "Weapons", .kind = FT_VALUE_BOOL, .flags = DD_PROP_START},
     [PROP_HAS_GRENADE] = {.id = "has_grenade", .display_name = "Grenade", .group = "Weapons", .kind = FT_VALUE_BOOL, .flags = DD_PROP_START},
     [PROP_HAS_LASER] = {.id = "has_laser", .display_name = "Laser", .group = "Weapons", .kind = FT_VALUE_BOOL, .flags = DD_PROP_START},
@@ -483,6 +499,12 @@ static bool ddnet_entity_prop_get(ft_game *game, const ft_world *world, uint32_t
     return true;
   case PROP_ACTIVE_WEAPON:
     *out = (ft_value){.kind = FT_VALUE_INT, .as.i = c->m_ActiveWeapon};
+    return true;
+  case PROP_RELOAD_TIMER:
+    *out = (ft_value){.kind = FT_VALUE_INT, .as.i = c->m_ReloadTimer};
+    return true;
+  case PROP_ATTACK_TICK:
+    *out = (ft_value){.kind = FT_VALUE_INT, .as.i = c->m_AttackTick};
     return true;
   case PROP_HEALTH:
     *out = (ft_value){.kind = FT_VALUE_INT, .as.i = c->m_Health};
